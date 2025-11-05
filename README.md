@@ -1,6 +1,6 @@
 To run 
 1. Install npm using this command
-   npm install
+npm install
 
 2. npm run dev
 
