@@ -1,51 +1,31 @@
 pipeline {
     agent { label 'jenkins-agent' }
-
     tools {
         jdk 'java17'
         maven 'maven3'
     }
-
-    stages {
-        stage('Cleanup Workspace') {
-            steps {
+    stages{
+        stage("Cleanup Workspace"){
+                steps {
                 cleanWs()
-            }
+                }
         }
 
-        stage('Checkout from SCM') {
+        stage("Checkout from SCM"){
+                steps {
+                    git branch: 'main', credentialsId: 'github', url: 'https://github.com/LevinRobert/storytelling-website'
+                }
+        }
+
+        stage("Build Application"){
             steps {
-                git branch: 'main', 
-                    credentialsId: 'github', 
-                    url: 'https://github.com/LevinRobert/storytelling-website.git'
+                sh "mvn clean package"
             }
-        }
 
-       stage('Build Application') {
-    steps {
-        dir('storytelling-website') {
-            sh 'mvn clean package'
-        }
-    }
-}
+       }
 
-stage('Test Application') {
-    steps {
-        dir('storytelling-website') {
-            sh 'mvn test'
-        }
-    }
-}
-
-    post {
-        always {
-            echo 'Pipeline execution completed.'
-        }
-        success {
-            echo 'Build and tests were successful!'
-        }
-        failure {
-            echo 'Pipeline failed. Please check the logs.'
-        }
-    }
-}
+       stage("Test Application"){
+           steps {
+                 sh "mvn test"
+           }
+       }
