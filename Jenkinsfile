@@ -64,6 +64,8 @@ pipeline {
         stage('Check Docker Access') {
             steps {
                 sh 'docker ps'
+                sh 'whoami'
+                sh 'id'
             }
         }
 
