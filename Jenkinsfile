@@ -62,44 +62,18 @@ pipeline {
             }
         }
 
-        stage('Check Docker Access (Debugging)') {
-            steps {
-                sh 'sudo docker ps || true'
-                
-                
-            }
-        }
+       stage("Docker build and push image'){
+             steps {
+                 script{
+                     docker.withRegistry('',DOCKER_PASS){
+                         docker_image = docker.build "${IMAGE_NAME}"
+                         
+                     }
+                     docker.withRegistry('',DOCKER_PASS){}
+                        docker_image.push("${IMAGE_TAG}")
+                        docker_image.push('latest')
+                 }
+             }
+       }
 
-        stage('Build & Push Docker Image') {
-            steps {
-                script {
-                    // Build Docker image
-                    sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -t ${IMAGE_NAME}:latest ."
-
-                    // Push Docker image to Docker Hub
-                    withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDS}", passwordVariable: 'DOCKER_PASS', usernameVariable: 'DOCKER_USER')]) {
-                        sh """
-                            echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
-                            docker push ${IMAGE_NAME}:${IMAGE_TAG}
-                            docker push ${IMAGE_NAME}:latest
-                            docker logout
-                        """
-                    }
-                }
-            }
-        }
-    }
-
-    post {
-        always {
-            echo 'Cleaning up workspace...'
-            cleanWs()
-        }
-        success {
-            echo 'Build and push completed successfully!'
-        }
-        failure {
-            echo 'Build failed. Please check logs for details.'
-        }
-    }
-}
+       
