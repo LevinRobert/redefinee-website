@@ -61,6 +61,14 @@ pipeline {
                 }
             }
         }
+        stage('Debug User') {
+            steps {
+                sh 'whoami'
+                sh 'id'
+                sh 'ls -l /var/run/docker.sock'
+    }
+}
+
 
         stage('Docker build and push image') {
             steps {
