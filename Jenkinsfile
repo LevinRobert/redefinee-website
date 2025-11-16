@@ -78,10 +78,11 @@ pipeline {
         stage('Docker Build & Push') {
             steps {
                 script {
-                    // Build Docker image
+
+                    // Build image with version tag
                     sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
 
-                    // Correct Docker login & push block
+                    // Login & Push
                     withCredentials([
                         usernamePassword(
                             credentialsId: "${DOCKER_CREDS}",
@@ -91,9 +92,15 @@ pipeline {
                     ]) {
                         sh '''
                             echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                            docker push ${IMAGE_NAME}:${IMAGE_TAG}
                         '''
                     }
+
+                    // Push version tag
+                    sh "docker push ${IMAGE_NAME}:${IMAGE_TAG}"
+
+                    // Create and push :latest tag
+                    sh "docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest"
+                    sh "docker push ${IMAGE_NAME}:latest"
                 }
             }
         }
@@ -101,12 +108,13 @@ pipeline {
         stage('trivy scan') {
             steps {
                 script {
-                    sh '''
+                    // Scan the correct built image (NOT latest)
+                    sh """
                         docker run -v /var/run/docker.sock:/var/run/docker.sock \
-                        aquasec/trivy image levin16robert/redefinee-website-pipeline:latest \
+                        aquasec/trivy image ${IMAGE_NAME}:${IMAGE_TAG} \
                         --no-progress --scanners vuln --exit-code 0 \
                         --severity HIGH,CRITICAL --format table
-                    '''
+                    """
                 }
             }
         }
@@ -114,8 +122,8 @@ pipeline {
         stage('Cleanup Artifacts') {
             steps {
                 script {
-                    sh "docker rmi ${IMAGE_NAME}:${IMAGE_TAG}"
-                    sh "docker rmi ${IMAGE_NAME}:latest"
+                    sh "docker rmi ${IMAGE_NAME}:${IMAGE_TAG} || true"
+                    sh "docker rmi ${IMAGE_NAME}:latest || true"
                 }
             }
         }
