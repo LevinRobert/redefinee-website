@@ -11,7 +11,10 @@ pipeline {
         RELEASE = "1.0.0"
         DOCKER_USER = "levin16robert"
         DOCKER_CREDS = "dockerhub"
-        IMAGE_NAME = "${DOCKER_USER}/${APP_NAME}"
+
+        // Force lowercase to avoid "invalid reference format"
+        IMAGE_NAME = "${DOCKER_USER}/${APP_NAME}".toLowerCase()
+
         IMAGE_TAG = "${RELEASE}-${BUILD_NUMBER}"
     }
 
@@ -20,6 +23,7 @@ pipeline {
         stage('Cleanup Workspace') {
             steps {
                 cleanWs()
+                sh "docker system prune -af || true"
             }
         }
 
@@ -61,16 +65,11 @@ pipeline {
             }
         }
 
-        stage('Debug User') {
+        stage('Debug Info') {
             steps {
                 sh 'whoami'
                 sh 'id'
                 sh 'ls -l /var/run/docker.sock'
-            }
-        }
-
-        stage('Debug Project Structure') {
-            steps {
                 sh 'ls -R .'
             }
         }
@@ -82,40 +81,47 @@ pipeline {
                     // Build image with version tag
                     sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
 
-                    // Login & Push
+                    // Dockerhub login
                     withCredentials([
                         usernamePassword(
                             credentialsId: "${DOCKER_CREDS}",
-                            usernameVariable: 'DOCKER_USER',
-                            passwordVariable: 'DOCKER_PASS'
+                            usernameVariable: 'DH_USER',
+                            passwordVariable: 'DH_PASS'
                         )
                     ]) {
                         sh '''
-                            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                            echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin
                         '''
                     }
 
                     // Push version tag
                     sh "docker push ${IMAGE_NAME}:${IMAGE_TAG}"
 
-                    // Create and push :latest tag
+                    // Push latest
                     sh "docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest"
                     sh "docker push ${IMAGE_NAME}:latest"
                 }
             }
         }
 
-        stage('trivy scan') {
+        stage('Trivy Scan (Fix: Avoid Disk Full)') {
             steps {
                 script {
-                    sh "rm -rf /root/.cache/trivy/* || true"
-                    // Scan the correct built image (NOT latest)
+                    // Pre-clean to avoid "no space left on device"
+                    sh "docker system prune -af || true"
+
+                    // Run scan
                     sh """
-                        docker run -v /var/run/docker.sock:/var/run/docker.sock \
+                        docker run --rm \
+                        -v /var/run/docker.sock:/var/run/docker.sock \
+                        -v /tmp/trivy-cache:/root/.cache/ \
                         aquasec/trivy image ${IMAGE_NAME}:${IMAGE_TAG} \
                         --no-progress --scanners vuln --exit-code 0 \
                         --severity HIGH,CRITICAL --format table
                     """
+
+                    // Post-clean
+                    sh "rm -rf /tmp/trivy-cache || true"
                 }
             }
         }
@@ -125,6 +131,7 @@ pipeline {
                 script {
                     sh "docker rmi ${IMAGE_NAME}:${IMAGE_TAG} || true"
                     sh "docker rmi ${IMAGE_NAME}:latest || true"
+                    sh "docker system prune -af || true"
                 }
             }
         }
