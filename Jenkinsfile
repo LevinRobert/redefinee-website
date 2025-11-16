@@ -1,5 +1,6 @@
 pipeline {
     agent { label 'jenkins-agent' }
+
     tools {
         jdk 'java17'
         maven 'maven3'
@@ -9,7 +10,7 @@ pipeline {
         APP_NAME = "redefinee-website-pipeline"
         RELEASE = "1.0.0"
         DOCKER_USER = "levin16robert"
-        DOCKER_CREDS = "dockerhub"          // Jenkins credentials ID for Docker Hub
+        DOCKER_CREDS = "dockerhub"
         IMAGE_NAME = "${DOCKER_USER}/${APP_NAME}"
         IMAGE_TAG = "${RELEASE}-${BUILD_NUMBER}"
     }
@@ -31,9 +32,8 @@ pipeline {
 
         stage('Build Application') {
             steps {
-                sh 'pwd'
-                sh 'ls'
                 sh 'mvn clean package -DskipTests'
+                sh 'ls -R target'
             }
         }
 
@@ -60,22 +60,26 @@ pipeline {
                 }
             }
         }
+
         stage('Debug User') {
             steps {
                 sh 'whoami'
                 sh 'id'
                 sh 'ls -l /var/run/docker.sock'
-    }
-}
+            }
+        }
 
+        stage('Debug Project Structure') {
+            steps {
+                sh 'ls -R .'
+            }
+        }
 
         stage('Docker build and push image') {
             steps {
-                sh "ls -lrt"
-                sh "pwd"
                 sh "docker build -t testing ."
-                
-                }
             }
         }
+
     }
+}
