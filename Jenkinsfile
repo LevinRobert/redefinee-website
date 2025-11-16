@@ -108,6 +108,7 @@ pipeline {
         stage('trivy scan') {
             steps {
                 script {
+                    sh "rm -rf /root/.cache/trivy/* || true"
                     // Scan the correct built image (NOT latest)
                     sh """
                         docker run -v /var/run/docker.sock:/var/run/docker.sock \
