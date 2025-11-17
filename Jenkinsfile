@@ -13,7 +13,7 @@ pipeline {
         DOCKER_CREDS = "dockerhub"
         IMAGE_NAME = "${DOCKER_USER}/${APP_NAME}".toLowerCase()
         IMAGE_TAG = "${RELEASE}-${BUILD_NUMBER}"
-        JENKINS_API_TOKEN = credentials("jenkins-api-token")
+        JENKINS_API_TOKEN=credentials("jenkins-api-token")
     }
 
     stages {
@@ -97,21 +97,25 @@ pipeline {
             }
         }
 
-        stage('Trivy Scan (Fix: Avoid Disk Full)') {
+        stage('Trivy Scan (Fix: Avoid Cache Lock Issue)') {
             steps {
                 script {
-                    sh "docker system prune -af || true"
+                    // Use a UNIQUE cache folder per build
+                    def TRIVY_CACHE = "/tmp/trivy-cache-${BUILD_NUMBER}"
+
+                    sh "mkdir -p ${TRIVY_CACHE}"
 
                     sh """
                         docker run --rm \
                         -v /var/run/docker.sock:/var/run/docker.sock \
-                        -v /tmp/trivy-cache:/root/.cache/ \
+                        -v ${TRIVY_CACHE}:/root/.cache/ \
                         aquasec/trivy image ${IMAGE_NAME}:${IMAGE_TAG} \
                         --no-progress --scanners vuln --exit-code 0 \
                         --severity HIGH,CRITICAL --format table
                     """
 
-                    sh "rm -rf /tmp/trivy-cache || true"
+                    // Clean up cache
+                    sh "rm -rf ${TRIVY_CACHE} || true"
                 }
             }
         }
@@ -126,9 +130,6 @@ pipeline {
             }
         }
 
-        
-           
-           
         stage('Trigger CD Pipeline') {
             steps {
                 script {
