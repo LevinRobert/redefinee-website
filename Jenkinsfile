@@ -1,4 +1,4 @@
-pipeline {
+\pipeline {
     agent { label 'jenkins-agent' }
 
     tools {
@@ -13,7 +13,7 @@ pipeline {
         DOCKER_CREDS = "dockerhub"
         IMAGE_NAME = "${DOCKER_USER}/${APP_NAME}".toLowerCase()
         IMAGE_TAG = "${RELEASE}-${BUILD_NUMBER}"
-        JENKINS_API_TOKEN=credentials("jenkins-api-token")
+        JENKINS_API_TOKEN = credentials("jenkins-api-token")
     }
 
     stages {
@@ -100,7 +100,6 @@ pipeline {
         stage('Trivy Scan (Fix: Avoid Cache Lock Issue)') {
             steps {
                 script {
-                    // Use a UNIQUE cache folder per build
                     def TRIVY_CACHE = "/tmp/trivy-cache-${BUILD_NUMBER}"
 
                     sh "mkdir -p ${TRIVY_CACHE}"
@@ -114,7 +113,6 @@ pipeline {
                         --severity HIGH,CRITICAL --format table
                     """
 
-                    // Clean up cache
                     sh "rm -rf ${TRIVY_CACHE} || true"
                 }
             }
@@ -130,11 +128,44 @@ pipeline {
             }
         }
 
+        /* -------------------------------------------------------------- */
+        /*  NEW STAGE: UPDATE GITOPS REPO FOR ARGOCD AUTO-DEPLOY         */
+        /* -------------------------------------------------------------- */
+
+        stage('Update GitOps deployment.yaml') {
+            steps {
+                script {
+
+                    withCredentials([
+                        usernamePassword(credentialsId: 'github', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')
+                    ]) {
+
+                        sh """
+                            rm -rf gitops
+                            git clone https://${GIT_USER}:${GIT_PASS}@github.com/LevinRobert/k8s-gitops.git gitops
+
+                            cd gitops/k8s
+
+                            # Update image tag in deployment.yaml
+                            sed -i 's|image: .*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g' deployment.yaml
+
+                            git config user.email "jenkins@ci.com"
+                            git config user.name "Jenkins CI"
+
+                            git add .
+                            git commit -m "Update image tag to ${IMAGE_TAG}"
+                            git push
+                        """
+                    }
+                }
+            }
+        }
+
         stage('Trigger CD Pipeline') {
             steps {
                 script {
-                    build job: 'redefinee-website-CD',   
-                          wait: false,                   
+                    build job: 'redefinee-website-CD',
+                          wait: false,
                           parameters: [
                               string(name: 'IMAGE_NAME', value: IMAGE_NAME),
                               string(name: 'IMAGE_TAG', value: IMAGE_TAG)
