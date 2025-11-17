@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: redefinee-website
-          image: levin16robert/redefinee-website-pipeline:latest
+          image: levin16robert/redefinee-website-pipeline:1.0.0-84
           resources:
             limits:
               cpu: "1"
