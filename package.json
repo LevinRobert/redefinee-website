@@ -1,5 +1,5 @@
 {
-  "name": "story-telling-website",
+  "name": "redefinee-website",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "serve -s dist -l 3000"
   },
   "dependencies": {
     "@gsap/react": "^2.1.1",
