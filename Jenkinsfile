@@ -128,9 +128,9 @@ pipeline {
             }
         }
 
-        /* -------------------------------------------------------------- */
-        /*  NEW STAGE: UPDATE GITOPS REPO FOR ARGOCD AUTO-DEPLOY         */
-        /* -------------------------------------------------------------- */
+        
+        
+        
 
         stage('Update GitOps deployment.yaml') {
             steps {
@@ -144,7 +144,8 @@ pipeline {
                             rm -rf gitops
                             git clone https://${GIT_USER}:${GIT_PASS}@github.com/LevinRobert/k8s-gitops.git gitops
 
-                            cd gitops/k8s
+                            cd gitops/redefinee-website
+
 
                             # Update image tag in deployment.yaml
                             sed -i 's|image: .*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g' deployment.yaml
